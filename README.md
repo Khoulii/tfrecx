@@ -104,3 +104,8 @@ git push origin feature/my-new-feature
 3. Include a summary of what was changed and any notes for reviewers.
 
 Thank you for contributing! Your effort makes TFReCX better for everyone.
+
+---
+## License
+TFReCX is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
