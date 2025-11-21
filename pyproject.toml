@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tfrecx"
+version = "0.1.0"
+description = "Elegant, production-ready toolkit for generating TFRecords from DataFrames, images, and more."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name="Khaled Alkhouli", email="khaled.alkhouli03@gmail.com"}
+]
+keywords = ["tensorflow", "tfrecord", "dataframe", "images", "machine-learning", "python", "deep-learning"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries"
+]
+
+dependencies = [
+    "tensorflow>=2.20.0",
+    "pandas>=2.3.3",
+    "numpy>=2.3.3",
+    "Pillow>=11.3.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/Khoulii/tfrecx/tree/main"
+Documentation = "https://github.com/Khoulii/tfrecx/blob/main/README.md"
+Repository = "https://github.com/Khoulii/tfrecx"
+BugTracker = "https://github.com/Khoulii/tfrecx/issues"
+
