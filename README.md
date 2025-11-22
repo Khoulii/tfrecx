@@ -107,5 +107,5 @@ Thank you for contributing! Your effort makes TFReCX better for everyone.
 
 ---
 ## License
-TFReCX is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+TFReCX is licensed under the Apache License. See the [LICENSE](LICENSE) file for details.
+![License](https://img.shields.io/badge/License-Apache-red.svg)
