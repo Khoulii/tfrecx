@@ -18,3 +18,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Python build artifacts
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
