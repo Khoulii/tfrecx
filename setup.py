@@ -10,11 +10,16 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Khoulii/tfrecx",
     packages=find_packages(exclude=["tests", "docs"]),
+    entry_points={
+        'console_scripts': [
+            f'tfrx_csv2tfrec = tfrecx.cli.csv2tfrec',
+        ]
+    },
     python_requires=">=3.10",
     install_requires=[
         "tensorflow>=2.20.0",
         "pandas>=2.3.3",
-        "numpy>=1.26.0,<2.0.0",
+        "numpy>=1.26.0",
         "Pillow>=11.3.0"
     ],
     extras_require={
