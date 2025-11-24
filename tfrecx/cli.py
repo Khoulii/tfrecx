@@ -14,7 +14,8 @@ from . import core as tfrx_core
 log = partial(print, file=sys.stderr, flush=True)
 
 def cli_help(cmd_name, cmd, sig):
-    log(getattr(cmd, "__doc__", cmd_name).strip())
+    log("\n\n"+("="*40)+"\n")
+    log(" USAGE: ", getattr(cmd, "__doc__", cmd_name).strip())
     for k, v in sig.parameters.items():
         ann = v.annotation.__name__ if v.annotation is not inspect._empty else ""
         d = v.default if v.default is not inspect._empty else None
