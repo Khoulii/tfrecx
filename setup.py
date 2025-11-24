@@ -12,7 +12,7 @@ setup(
     packages=find_packages(exclude=["tests", "docs"]),
     entry_points={
         'console_scripts': [
-            f'tfrx_csv2tfrec = tfrecx.cli.csv2tfrec',
+            f'tfrx_csv2tfrec = tfrecx.cli:csv2tfrec',
         ]
     },
     python_requires=">=3.10",
