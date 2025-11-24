@@ -1,10 +1,8 @@
+<p align="center"> <img src="banner.png" alt="banner" width="600"> </p> <p align="center"> <a href="https://pypi.org/project/tfrecx/"><img src="https://img.shields.io/pypi/v/tfrecx"></a> <img src="https://img.shields.io/badge/python-3.10+-important"> <a href="https://pypi.org/project/tfrecx/"><img src="https://img.shields.io/pypi/dm/tfrecx"></a> <a href="https://pepy.tech/projects/tfrecx"><img src="https://static.pepy.tech/badge/tfrecx"></a> <a href="https://github.com/khoulii/tfrecx/stargazers"><img src="https://img.shields.io/github/stars/khoulii/tfrecx?style=flat"></a> <img src="https://img.shields.io/badge/License-Apache-red.svg"> </p>
+
 # TFReCX
 Elegant, minimal, and production-ready toolkit for working with TFRecords.
 
-<img src="banner.png" alt="banner" width="600" height="auto">
-
----
-## Overview
 TFReCX is designed to help developers efficiently generate, manipulate, and manage TFRecords from various sources with clean abstractions, type safety, and customization. Its goal is to reduce the complexity of working with TFRecords and provide a production-ready workflow for TensorFlow pipelines.
 
 ---
