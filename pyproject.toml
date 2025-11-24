@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tfrecx"
-version = "0.1.0"
+version = "0.1.1"
 description = "Elegant, production-ready toolkit for generating TFRecords from DataFrames, images, and more."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -37,4 +37,7 @@ Homepage = "https://github.com/Khoulii/tfrecx/tree/main"
 Documentation = "https://github.com/Khoulii/tfrecx/blob/main/README.md"
 Repository = "https://github.com/Khoulii/tfrecx"
 BugTracker = "https://github.com/Khoulii/tfrecx/issues"
+
+[project.scripts]
+tfrx_csv2tfrec = "tfrecx.cli:csv2tfrec"
 
