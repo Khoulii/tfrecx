@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="tfrecx",
-    version="0.1.0",
+    version="0.1.1",
     author="Khaled Alkhouli",
     author_email="khaled.alkhouli03@gmail.com",
     description="Elegant toolkit for creating TFRecords from pandas DataFrames, images, and more.",

@@ -4,7 +4,7 @@ import optparse
 
 import pandas as pd
 
-import tfrecx.core
+from . import core as tfrx_core
 
 from functools import partial
 
@@ -16,5 +16,5 @@ def csv2tfrec():
     log(f"** II ** converting [{fn_in}] => [{fn_out}]: reading ...")
     df = pd.read_csv(fn_in)
     log(f"** II ** converting [{fn_in}] => [{fn_out}]: writing ...")
-    tfrecx.core.pd_to_tfrec(df, fn_out)
+    tfrx_core.pd_to_tfrec(df, fn_out)
     log(f"** II ** converting [{fn_in}] => [{fn_out}]: done.")
