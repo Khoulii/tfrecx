@@ -13,6 +13,8 @@ setup(
     entry_points={
         'console_scripts': [
             f'tfrx_csv2tfrec = tfrecx.cli:csv2tfrec',
+            f'tfrx_json2tfrec = tfrecx.cli:json2tfrec',
+            f'tfrx_head = tfrecx.cli:head',
         ]
     },
     python_requires=">=3.10",

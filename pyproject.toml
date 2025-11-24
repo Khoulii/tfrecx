@@ -40,4 +40,5 @@ BugTracker = "https://github.com/Khoulii/tfrecx/issues"
 
 [project.scripts]
 tfrx_csv2tfrec = "tfrecx.cli:csv2tfrec"
-
+tfrx_json2tfrec = "tfrecx.cli:json2tfrec"
+tfrx_head = "tfrecx.cli:head"
