@@ -10,11 +10,11 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Khoulii/tfrecx",
     packages=find_packages(exclude=["tests", "docs"]),
-    python_requires=">=3.10,<3.13",
+    python_requires=">=3.10",
     install_requires=[
         "tensorflow>=2.20.0",
         "pandas>=2.3.3",
-        "numpy>=2.3.3",
+        "numpy>=1.26.0,<2.0.0",
         "Pillow>=11.3.0"
     ],
     extras_require={
@@ -22,7 +22,7 @@ setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache License",
         "Operating System :: OS Independent",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries"
