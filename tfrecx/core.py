@@ -3,22 +3,23 @@ import os
 import csv
 import random
 import tempfile
+from typing import Optional, Union
 
 import tensorflow as tf
 import pandas as pd
-import numpy as np
 
 from PIL import Image
 
-from .utils import *
+from .utils import to_feature, get_feature_description, get_default_value
+
 
 def count_records(path: str) -> int:
     """
     Count the number of records in a TFRecord file.
-    
+
     Args:
         path (str): Path to the TFRecord file.
-    
+
     Returns:
         int: Number of records in the file.
     """
@@ -26,6 +27,7 @@ def count_records(path: str) -> int:
     for _ in tf.data.TFRecordDataset(path):
         count += 1
     return count
+
 
 def head(path: str, n: int = 5) -> list:
     """
@@ -40,9 +42,7 @@ def head(path: str, n: int = 5) -> list:
         to lists of values (decoded into Python types).
     """
     records = []
-    dataset = tf.data.TFRecordDataset(path)
-
-    for raw_record in dataset.take(n):
+    for raw_record in tf.data.TFRecordDataset(path).take(n):
         example = tf.train.Example()
         example.ParseFromString(raw_record.numpy())
 
@@ -58,35 +58,37 @@ def head(path: str, n: int = 5) -> list:
         records.append(parsed)
     return records
 
-def get_schema(path: str, n:int=1) -> dict:
+
+def get_schema(path: str, n: int = 1) -> dict:
     """
-    Returns the schema of a TFRecord file.
+    Returns the schema of a TFRecord file by inspecting up to n records.
 
     Args:
         path: Path to the TFRecord file.
+        n: Number of records to inspect. Defaults to 1.
 
     Returns:
         A dictionary mapping feature names to their types
         ('int64', 'float', or 'bytes').
     """
-    dataset = tf.data.TFRecordDataset(path)
-    schema_set = set()
-    raw_record = next(iter(dataset.take(n)))
-    example = tf.train.Example()
-    example.ParseFromString(raw_record.numpy())
-    for key, feature in example.features.feature.items():
-        schema = {}
-        kind = feature.WhichOneof("kind")
-        if kind == "bytes_list":
-            schema[key] = "bytes"
-        elif kind == "float_list":
-            schema[key] = "float"
-        elif kind == "int64_list":
-            schema[key] = "int64"
-        schema_set|=set([(k, v) for k, v in schema.items()])
-    return dict(schema_set)
+    schema = {}
+    for raw_record in tf.data.TFRecordDataset(path).take(n):
+        example = tf.train.Example()
+        example.ParseFromString(raw_record.numpy())
+        for key, feature in example.features.feature.items():
+            if key in schema:
+                continue
+            kind = feature.WhichOneof("kind")
+            if kind == "bytes_list":
+                schema[key] = "bytes"
+            elif kind == "float_list":
+                schema[key] = "float"
+            elif kind == "int64_list":
+                schema[key] = "int64"
+    return schema
 
-def pd_to_tfrec(df: pd.DataFrame, out_file_path: str, max_rows: int = None, shuffle: bool = False) -> None:
+
+def pd_to_tfrec(df: pd.DataFrame, out_file_path: str, max_rows: Optional[int] = None, shuffle: bool = False) -> None:
     """
     Convert a pandas DataFrame to a TFRecord file.
 
@@ -95,8 +97,7 @@ def pd_to_tfrec(df: pd.DataFrame, out_file_path: str, max_rows: int = None, shuf
         out_file_path (str): Path to the output TFRecord file.
         max_rows (int, optional): Maximum rows per TFRecord file.
                                 If None, all rows go to a single file.
-        shuffle (bool, optional): True to shuffle the before inserting to the tfrecord.
-                                Defult is False.
+        shuffle (bool, optional): True to shuffle before writing. Default is False.
     """
     if shuffle:
         df = df.sample(frac=1, random_state=None).reset_index(drop=True)
@@ -107,7 +108,7 @@ def pd_to_tfrec(df: pd.DataFrame, out_file_path: str, max_rows: int = None, shuf
     else:
         total_rows = len(df)
         num_files = (total_rows + max_rows - 1) // max_rows
-        dfs = [df.iloc[i*max_rows : (i+1)*max_rows] for i in range(num_files)]
+        dfs = [df.iloc[i * max_rows: (i + 1) * max_rows] for i in range(num_files)]
         base_name = out_file_path.rsplit('.', 1)[0]
         file_paths = [f"{base_name}_{i}.tfrecord" for i in range(num_files)]
 
@@ -118,7 +119,8 @@ def pd_to_tfrec(df: pd.DataFrame, out_file_path: str, max_rows: int = None, shuf
                 example = tf.train.Example(features=tf.train.Features(feature=features))
                 writer.write(example.SerializeToString())
 
-def tfrec_to_pd(paths: str, schema: dict = None, batch_size: int = 1000) -> pd.DataFrame:
+
+def tfrec_to_pd(paths: Union[str, list], schema: Optional[dict] = None, batch_size: Optional[int] = 1000) -> pd.DataFrame:
     """
     Convert one or more TFRecord files into a Pandas DataFrame in a memory-safe manner.
     Records are streamed in batches and written to a temporary CSV file, avoiding
@@ -152,32 +154,36 @@ def tfrec_to_pd(paths: str, schema: dict = None, batch_size: int = 1000) -> pd.D
         batch_size = 1000
     dataset = dataset.batch(batch_size)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-        csv_path = tmp.name
+    csv_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+            csv_path = tmp.name
 
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(schema.keys())
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(schema.keys())
 
-        for batch in dataset:
-            batch_len = len(next(iter(batch.values())))
-            for i in range(batch_len):
-                row = []
-                for key, dtype in schema.items():
-                    value = batch[key][i].numpy()
-                    if dtype == "bytes":
-                        value = value.decode("utf-8")
-                    else:
-                        if hasattr(value, "item"):
+            for batch in dataset:
+                batch_len = len(next(iter(batch.values())))
+                for i in range(batch_len):
+                    row = []
+                    for key, dtype in schema.items():
+                        value = batch[key][i].numpy()
+                        if dtype == "bytes":
+                            value = value.decode("utf-8")
+                        elif hasattr(value, "item"):
                             value = value.item()
-                    row.append(value)
-                writer.writerow(row)
+                        row.append(value)
+                    writer.writerow(row)
 
-    df = pd.read_csv(csv_path)
-    os.remove(csv_path)
+        df = pd.read_csv(csv_path)
+    finally:
+        if csv_path and os.path.exists(csv_path):
+            os.remove(csv_path)
     return df
 
-def append_pd_to_tfrec(df: pd.DataFrame, out_file_path: str, out_schema: dict = None) -> None:
+
+def append_pd_to_tfrec(df: pd.DataFrame, out_file_path: str, out_schema: Optional[dict] = None) -> None:
     """
     Append rows from a Pandas DataFrame to an existing TFRecord file,
     while preserving schema and existing records.
@@ -188,7 +194,6 @@ def append_pd_to_tfrec(df: pd.DataFrame, out_file_path: str, out_schema: dict = 
         out_schema (dict, optional): A dictionary mapping feature names to types.
             If not provided, the function will infer the schema from the existing TFRecord.
     """
-
     if out_schema is None:
         if not os.path.exists(out_file_path) or os.path.getsize(out_file_path) == 0:
             raise ValueError(
@@ -199,31 +204,37 @@ def append_pd_to_tfrec(df: pd.DataFrame, out_file_path: str, out_schema: dict = 
         raise ValueError(
             f"TFRecord {out_file_path} is empty or missing schema. Provide out_schema explicitly.")
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp_path = tmp.name
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp_path = tmp.name
 
-    with tf.io.TFRecordWriter(tmp_path) as writer:
-        # Copy existing records
-        if os.path.exists(out_file_path) and os.path.getsize(out_file_path) > 0:
-            try:
-                for record in tf.data.TFRecordDataset(out_file_path):
-                    writer.write(record.numpy())
-            except tf.errors.DataLossError as e:
-                raise ValueError(f"TFRecord file {out_file_path} is corrupted.") from e
-        # Append new rows
-        for row in df.itertuples(index=False, name=None):
-            features = {}
-            for col in out_schema.keys():
-                if col in df.columns:
-                    val = row[df.columns.get_loc(col)]
-                else:
-                    val = get_default_value(out_schema[col])
+        with tf.io.TFRecordWriter(tmp_path) as writer:
+            if os.path.exists(out_file_path) and os.path.getsize(out_file_path) > 0:
+                try:
+                    for record in tf.data.TFRecordDataset(out_file_path):
+                        writer.write(record.numpy())
+                except tf.errors.DataLossError as e:
+                    raise ValueError(f"TFRecord file {out_file_path} is corrupted.") from e
 
-                features[col] = to_feature(val)
+            for row in df.itertuples(index=False, name=None):
+                features = {}
+                for col in out_schema.keys():
+                    if col in df.columns:
+                        val = row[df.columns.get_loc(col)]
+                    else:
+                        val = get_default_value(out_schema[col])
+                    features[col] = to_feature(val)
 
-            example = tf.train.Example(features=tf.train.Features(feature=features))
-            writer.write(example.SerializeToString())
-    os.replace(tmp_path, out_file_path)
+                example = tf.train.Example(features=tf.train.Features(feature=features))
+                writer.write(example.SerializeToString())
+
+        os.replace(tmp_path, out_file_path)
+        tmp_path = None
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
 
 def append_imgs_to_tfrec(images, path: str) -> None:
     """
@@ -233,7 +244,6 @@ def append_imgs_to_tfrec(images, path: str) -> None:
         images: A single image (PIL Image, numpy array, or file path) or list of such items.
         path: Path to the TFRecord file to append to.
     """
-
     if not isinstance(images, (list, tuple)):
         images = [images]
 
@@ -252,24 +262,29 @@ def append_imgs_to_tfrec(images, path: str) -> None:
         example = tf.train.Example(features=tf.train.Features(feature=feature))
         return example.SerializeToString()
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp_path = tmp.name
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp_path = tmp.name
 
-    with tf.io.TFRecordWriter(tmp_path) as writer:
-        # Copy existing records
-        if os.path.exists(path) and os.path.getsize(path) > 0:
-            try:
-                for record in tf.data.TFRecordDataset(path):
-                    writer.write(record.numpy())
-            except tf.errors.DataLossError as e:
-                raise ValueError(f"TFRecord file {path} is corrupted.") from e
-        # Append new images
-        for img in images:
-            writer.write(_image_to_serialized(img))
-    os.replace(tmp_path, path)
+        with tf.io.TFRecordWriter(tmp_path) as writer:
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                try:
+                    for record in tf.data.TFRecordDataset(path):
+                        writer.write(record.numpy())
+                except tf.errors.DataLossError as e:
+                    raise ValueError(f"TFRecord file {path} is corrupted.") from e
+            for img in images:
+                writer.write(_image_to_serialized(img))
+
+        os.replace(tmp_path, path)
+        tmp_path = None
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
-def merge_tfrecs(input_paths: list[str], output_path: str) -> None:
+def merge_tfrecs(input_paths: list, output_path: str) -> None:
     """
     Merge multiple TFRecord files into a single TFRecord file.
 
@@ -289,75 +304,79 @@ def merge_tfrecs(input_paths: list[str], output_path: str) -> None:
             for record in tf.data.TFRecordDataset(path):
                 writer.write(record.numpy())
 
-def split_tfrec(input_file: str, output_dir: str, max_rows: int) -> None:
+
+def split_tfrec(input_file: str, output_dir: str, max_rows: Optional[int] = None) -> None:
     """
     Split a large TFRecord file into multiple smaller TFRecord files.
 
     Args:
         input_file (str): Path to the input TFRecord.
         output_dir (str): Directory to save the split files.
-        max_rows (int): Maximum number of records per split file.
+        max_rows (int, optional): Maximum number of records per split file.
                         If None, no splitting is performed and the file is simply copied.
-
     """
     os.makedirs(output_dir, exist_ok=True)
-
-    dataset = list(tf.data.TFRecordDataset(input_file))
-    total = len(dataset)
-
     base_name = os.path.splitext(os.path.basename(input_file))[0]
 
     if max_rows is None:
         out_file = os.path.join(output_dir, f"{base_name}.tfrecord")
         with tf.io.TFRecordWriter(out_file) as writer:
-            for record in dataset:
+            for record in tf.data.TFRecordDataset(input_file):
                 writer.write(record.numpy())
         return
 
     if max_rows <= 0:
-        raise ValueError("batch_size must be a positive integer or None.")
+        raise ValueError("max_rows must be a positive integer or None.")
 
-    num_files = (total + max_rows - 1) // max_rows
-    for i in range(num_files):
-        out_file = os.path.join(output_dir, f"{base_name}_{i}.tfrecord")
-        with tf.io.TFRecordWriter(out_file) as writer:
-            for record in dataset[i*max_rows : (i+1)*max_rows]:
-                writer.write(record.numpy())
+    file_idx = 0
+    record_count = 0
+    writer = None
+    try:
+        for record in tf.data.TFRecordDataset(input_file):
+            if record_count % max_rows == 0:
+                if writer is not None:
+                    writer.close()
+                out_file = os.path.join(output_dir, f"{base_name}_{file_idx}.tfrecord")
+                writer = tf.io.TFRecordWriter(out_file)
+                file_idx += 1
+            writer.write(record.numpy())
+            record_count += 1
+    finally:
+        if writer is not None:
+            writer.close()
 
-def shuffle_tfrec(input_file: str, output_file: str, batch_size: int = None) -> None:
+
+def shuffle_tfrec(input_file: str, output_file: str, batch_size: Optional[int] = None) -> None:
     """
     Shuffle a TFRecord file and save the result.
 
     Args:
         input_file (str): Path to input TFRecord.
         output_file (str): Path to save shuffled TFRecord.
-        buffer_size (int): Buffer size for shuffling (larger = more random).
+        batch_size (int, optional): If set, shuffle within fixed-size batches (memory-efficient).
+                                    If None, load all records and perform a full shuffle.
     """
-    dataset = list(tf.data.TFRecordDataset(input_file))
+    if batch_size is not None and batch_size <= 0:
+        raise ValueError("batch_size must be a positive integer or None.")
 
     if batch_size is None:
-        records = list(dataset)
+        records = list(tf.data.TFRecordDataset(input_file))
         random.shuffle(records)
         with tf.io.TFRecordWriter(output_file) as writer:
             for record in records:
                 writer.write(record.numpy())
         return
 
-    if batch_size <= 0:
-        raise ValueError("batch_size must be a positive integer or None.")
-
     buffer = []
-    writer = tf.io.TFRecordWriter(output_file)
-
-    for record in dataset:
-        buffer.append(record)
-        if len(buffer) >= batch_size:
+    with tf.io.TFRecordWriter(output_file) as writer:
+        for record in tf.data.TFRecordDataset(input_file):
+            buffer.append(record)
+            if len(buffer) >= batch_size:
+                random.shuffle(buffer)
+                for r in buffer:
+                    writer.write(r.numpy())
+                buffer.clear()
+        if buffer:
             random.shuffle(buffer)
             for r in buffer:
                 writer.write(r.numpy())
-            buffer.clear()
-    if buffer:
-        random.shuffle(buffer)
-        for r in buffer:
-            writer.write(r.numpy())
-    writer.close()
